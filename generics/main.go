@@ -1,6 +1,9 @@
 package main
 
-import "fmt"
+import (
+	"cmp"
+	"fmt"
+)
 
 type Number interface {
 	int | float32 | float64
@@ -14,6 +17,14 @@ func Sum[T Number](numbers ...T) T {
 	return total
 }
 
+func Min[T cmp.Ordered](x, y T) T {
+	if x < y {
+		return x
+	}
+	return y
+}
+
 func main() {
 	fmt.Println(Sum(1, 2, 3, 4, 5))
+	fmt.Println(Min("abc", "ab"))
 }

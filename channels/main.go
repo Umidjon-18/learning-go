@@ -10,7 +10,7 @@ func testUnbuffered() {
 	channel := make(chan int)
 	start := time.Now()
 	go func() {
-		for i := 0; i < 5; i++ {
+		for i := range 5 {
 			fmt.Println("Sending: ", i)
 			channel <- i
 			fmt.Println("Sent: ", i)
@@ -31,7 +31,7 @@ func testBuffered() {
 	channel := make(chan int, 5)
 	start := time.Now()
 	go func() {
-		for i := 0; i < 5; i++ {
+		for i := range 5 {
 			fmt.Println("Sending: ", i)
 			channel <- i
 			fmt.Println("Sent: ", i)

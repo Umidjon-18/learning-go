@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"runtime"
 	"sync"
 	"time"
 )
@@ -14,15 +15,18 @@ func saySomething(text string, delay time.Duration, wg *sync.WaitGroup) {
 
 func main() {
 
-	var wg sync.WaitGroup
+	// var wg sync.WaitGroup
 
-	totalGroup := 5
-	for i := range totalGroup {
-		wg.Add(1)
-		go saySomething(fmt.Sprintf("Hello from go routine %d", i), time.Second, &wg)
-	}
-	fmt.Println("Hello from main go routine")
-	fmt.Println("Bye from main go routine")
+	// totalGroup := 5
+	// for i := range totalGroup {
+	// 	wg.Add(1)
+	// 	go saySomething(fmt.Sprintf("Hello from go routine %d", i), time.Second, &wg)
+	// }
+	// fmt.Println("Hello from main go routine")
+	// fmt.Println("Bye from main go routine")
 
-	wg.Wait()
+	// wg.Wait()
+
+	fmt.Println("CPUs: ", runtime.NumCPU())
+	fmt.Println("Threads allowed: ", runtime.GOMAXPROCS(0))
 }

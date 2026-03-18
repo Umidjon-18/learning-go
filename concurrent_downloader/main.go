@@ -19,11 +19,9 @@ func DownloadFile(url, dir string) error {
 		return fmt.Errorf("File create error: %+v", err)
 	}
 	defer out.Close()
+	client := &http.Client{Timeout: 30 * time.Second}
 
-	fmt.Println("Download started")
-	start := time.Now()
-
-	res, err := http.Get(url)
+	res, err := client.Get(url)
 	if err != nil {
 		os.Remove(filePath)
 		return fmt.Errorf("Http request error: %+v", err)
@@ -38,7 +36,6 @@ func DownloadFile(url, dir string) error {
 	if err != nil {
 		return fmt.Errorf("File copy error: %+v", err)
 	}
-	fmt.Printf("Download took %+v\n", time.Since(start))
 	return nil
 }
 
@@ -66,6 +63,7 @@ func ConcurrentDownloader(urls []string, dir string, maxConcurrency int64) error
 	}
 	var wg sync.WaitGroup
 	limiter := make(chan struct{}, maxConcurrency)
+	errorCh := make(chan error, len(urls))
 
 	for _, url := range urls {
 		wg.Add(1)
@@ -73,12 +71,20 @@ func ConcurrentDownloader(urls []string, dir string, maxConcurrency int64) error
 			defer wg.Done()
 			limiter <- struct{}{}
 			defer func() { <-limiter }()
-			DownloadFile(url, dir)
+			err := DownloadFile(url, dir)
+			if err != nil {
+				errorCh <- err
+			}
 		}(url)
 	}
 
 	wg.Wait()
+	close(limiter)
+	close(errorCh)
 	fmt.Printf("Concurrent download took %+v\n", time.Since(start))
+	for err := range errorCh {
+		return err
+	}
 	return nil
 }
 

@@ -5,31 +5,69 @@ import (
 	"time"
 )
 
-func worker(id int, jobs <-chan int, results chan<- int) {
-	for i := range jobs {
-		fmt.Printf("Worker %d started job %d\n", id, i)
-		time.Sleep(time.Second)
-		results <- i
-		fmt.Printf("Worker %d finished job %d\n", id, i)
+func ping(cancelCh <-chan struct{}, pingCh chan<- struct{}, pongCh <-chan struct{}, logCh chan<- string) {
+	for {
+		select {
+		case <-cancelCh:
+			return
+		case <-pongCh:
+			time.Sleep(time.Second)
+			select {
+			case pingCh <- struct{}{}:
+				select {
+				case logCh <- "Ping":
+				default:
+				}
+			case <-cancelCh:
+				logCh <- "Finished"
+				return
+			}
+		}
+	}
+}
+func pong(cancelCh <-chan struct{}, pongCh chan<- struct{}, pingCh <-chan struct{}, logCh chan<- string) {
+	for {
+		select {
+		case <-cancelCh:
+			return
+		case <-pingCh:
+			time.Sleep(time.Second)
+			select {
+			case pongCh <- struct{}{}:
+				select {
+				case logCh <- "Pong":
+				default:
+				}
+			case <-cancelCh:
+				logCh <- "Finished"
+				return
+
+			}
+		}
+	}
+}
+
+func logger(logCh <-chan string) {
+	for log := range logCh {
+		fmt.Println(log)
 	}
 }
 
 func main() {
-	numberOfJobs := 5
 
-	jobs := make(chan int, numberOfJobs)
-	results := make(chan int, numberOfJobs)
+	pingCh := make(chan struct{})
+	pongCh := make(chan struct{})
+	cancelCh := make(chan struct{})
+	logCh := make(chan string, 20)
 
-	for i := range 3 {
-		go worker(i, jobs, results)
-	}
+	go ping(cancelCh, pingCh, pongCh, logCh)
+	go pong(cancelCh, pongCh, pingCh, logCh)
+	go logger(logCh)
 
-	for i := range numberOfJobs {
-		jobs <- i
-	}
-	close(jobs)
-	for range numberOfJobs {
-		<-results
-	}
-
+	pingCh <- struct{}{}
+	logCh <- "Ping"
+	time.Sleep(5 * time.Second)
+	close(cancelCh)
+	time.Sleep(time.Second)
+	close(logCh)
 }

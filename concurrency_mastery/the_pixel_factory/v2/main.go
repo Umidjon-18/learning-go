@@ -14,7 +14,6 @@ type Task struct {
 
 func collector(ctx context.Context, taskChan chan<- Task, wg *sync.WaitGroup) {
 	defer wg.Done()
-	// TODO: Generate tasks until ctx.Done()
 	id := 1
 	timer := time.NewTicker(100 * time.Millisecond)
 	defer timer.Stop()
@@ -34,13 +33,15 @@ func collector(ctx context.Context, taskChan chan<- Task, wg *sync.WaitGroup) {
 
 func worker(ctx context.Context, id int, tasks <-chan Task, results chan<- int, gpu chan struct{}, wg *sync.WaitGroup) {
 	defer wg.Done()
-	// TODO: Process tasks. Use 'gpu' semaphore for the "Heavy Filter" part.
 	for {
 		select {
 		case <-ctx.Done():
 			fmt.Printf("Worker %d is shutting down\n", id)
 			return
-		case t := <-tasks:
+		case t, ok := <-tasks:
+			if !ok {
+				return
+			}
 			fmt.Printf("Processing task %d\n", t.ID)
 			select {
 			case <-ctx.Done():
@@ -56,8 +57,8 @@ func worker(ctx context.Context, id int, tasks <-chan Task, results chan<- int, 
 	}
 }
 
-func aggregator(results <-chan int) {
-	// TODO: Total up the results and signal when finished
+func aggregator(results <-chan int, finalWg *sync.WaitGroup) {
+	defer finalWg.Done()
 	for r := range results {
 		fmt.Printf("Task %d is done\n", r)
 	}
@@ -66,16 +67,22 @@ func aggregator(results <-chan int) {
 
 func main() {
 	// Setup channels, context, and waitgroups
-	var tasks chan Task = make(chan Task, 5)
-	var results chan int = make(chan int)
+	var tasks chan Task = make(chan Task, 10)
+	var results chan int = make(chan int, 10)
 	var gpu chan struct{} = make(chan struct{}, 2)
 	var producerWg = new(sync.WaitGroup)
 	var workerWg = new(sync.WaitGroup)
-	ctx, cancel := context.WithCancel(context.Background())
+	var aggregatorWg = new(sync.WaitGroup)
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 	// Launch goroutines
 	producerWg.Add(1)
 	go collector(ctx, tasks, producerWg)
+
+	go func() {
+		producerWg.Wait()
+		close(tasks)
+	}()
 
 	for i := 0; i < 5; i++ {
 		workerWg.Add(1)
@@ -83,9 +90,14 @@ func main() {
 		go worker(ctx, id, tasks, results, gpu, workerWg)
 	}
 
-	go aggregator(results)
+	go func() {
+		workerWg.Wait()
+		close(results)
+	}()
+	aggregatorWg.Add(1)
+	go aggregator(results, aggregatorWg)
 
 	// Handle graceful exit
-	<-ctx.Done()
+	aggregatorWg.Wait()
 
 }

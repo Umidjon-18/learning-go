@@ -1,30 +1,55 @@
 package main
 
-import "fmt"
+import (
+	"fmt"
+)
 
-func deferExample() {
-	defer fmt.Println("Deferred print")
-	fmt.Println("Hello from Uzbekistan")
+type CustomError struct {
+	Code    int
+	Message string
 }
 
-func panicExample(shouldPanic bool) {
-	if shouldPanic {
-		panic("This function needs to panic")
-	}
-	fmt.Println("This function executed without panic")
+func (c CustomError) Error() string {
+	return fmt.Sprintf("CustomError{ Code: %d, Message: %s}", c.Code, c.Message)
+}
+
+func getError() error {
+	return CustomError{Code: 500, Message: "Internal server error"}
+}
+
+func errorWrapping() error {
+	err := getError()
+	return fmt.Errorf("%w. It seems something is broken in serverside.", err)
 }
 
 func recoverable() {
 	defer func() {
 		if r := recover(); r != nil {
-			fmt.Println("This function recovered from panic")
+			fmt.Println("Recover block is running because of panic")
 		}
 	}()
 
-	panicExample(true)
+	panic("Booom")
 }
 
 func main() {
-	// deferExample()
-	recoverable()
+	// fmt.Println(getError())
+	// fmt.Println(errorWrapping())
+
+	var section = make([][2]int, 10)
+	for i := range section {
+		if i == 0 {
+			section[i][0] = 0
+		} else {
+			section[i][0] = section[i-1][1] + 1
+		}
+
+		if i < 9 {
+			section[i][1] = section[i][0] + 100
+		} else {
+			section[i][1] = 1000 - 1
+		}
+	}
+
+	fmt.Println("Section after shaped: ", section)
 }

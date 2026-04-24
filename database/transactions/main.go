@@ -26,14 +26,6 @@ bio TEXT,
 created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 )`
 
-var insertUserQuery = `INSERT INTO users (name, email, hashed_password) VALUES (?, ?, ?)`
-
-var getUserByEmailQuery = `SELECT id, name, email, hashed_password, created_at FROM users WHERE email = ?`
-
-var insertProfileQuery = `INSERT INTO profiles (user_id, bio) VALUES (?, ?)`
-
-var getProfileByUserIdQuery = `SELECT id, user_id, bio, created_at FROM profiles WHERE user_id = ?`
-
 func main() {
 	dbName := "users.db"
 	_ = os.Remove(dbName)
